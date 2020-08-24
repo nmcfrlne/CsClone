@@ -4,7 +4,7 @@ using UnityEngine;
 using Photon.Pun;
 using UnityEngine.UI;
 
-public class Player : MonoBehaviourPunCallbacks
+public class Player : MonoBehaviourPunCallbacks, IPunObservable
 {
 
     #region Variables
@@ -40,6 +40,7 @@ public class Player : MonoBehaviourPunCallbacks
     private float movementCounter;
     private float idleCounter;
     private float slideTime;
+    private float aimAngle;
 
     private int currentHealth;
 
@@ -54,6 +55,20 @@ public class Player : MonoBehaviourPunCallbacks
     private Weapon weapon;
     #endregion
 
+
+    public void OnPhotonSerializeView(PhotonStream pStream, PhotonMessageInfo pMessage)
+    {
+        //isWriting = the machine that is writing owns this object
+        if(pStream.IsWriting)
+        {
+            pStream.SendNext((int)(weaponParent.transform.localEulerAngles.x * 100f));
+        }
+        else
+        {
+            aimAngle = (int)pStream.ReceiveNext() / 100f;
+        }
+    }
+
     #region MonoBehaviour Callbacks
     private void Start()
     {
@@ -64,7 +79,12 @@ public class Player : MonoBehaviourPunCallbacks
 
         cameraParent.SetActive(photonView.IsMine);
         //Can shoot players who arent themselves
-        if(!photonView.IsMine) gameObject.layer = 11;
+        if (!photonView.IsMine)
+        {
+            gameObject.layer = 11;
+            standingCollider.layer = 11;
+            crouchingCollider.layer = 11; 
+        }
 
         baseFOV = normalCam.fieldOfView;
         camOrigin = normalCam.transform.localPosition;
@@ -84,7 +104,11 @@ public class Player : MonoBehaviourPunCallbacks
 
     private void Update()
     {
-        if (!photonView.IsMine) return;
+        if (!photonView.IsMine)
+        {
+            RefreshMultiplayerState();
+            return;
+        }
 
         //Axles
         float t_hmove = Input.GetAxisRaw("Horizontal");
@@ -164,7 +188,11 @@ public class Player : MonoBehaviourPunCallbacks
 
     void FixedUpdate()
     {
-        if (!photonView.IsMine) return;
+        if (!photonView.IsMine)
+        {
+            RefreshMultiplayerState();
+            return;
+        }
 
         //Axles
         float t_hmove = Input.GetAxisRaw("Horizontal");
@@ -300,5 +328,18 @@ public class Player : MonoBehaviourPunCallbacks
     {
         float healthRatio = (float)currentHealth / (float)maxHealth;
         uiHealthBar.localScale = Vector3.Lerp(uiHealthBar.localScale, new Vector3(healthRatio, 1, 1), Time.deltaTime * 8f);
+    }
+
+    void RefreshMultiplayerState()
+    {
+        float cacheEulY = weaponParent.localEulerAngles.y;
+
+        Quaternion targetRotation = Quaternion.identity * Quaternion.AngleAxis(aimAngle, Vector3.right);
+        weaponParent.rotation = Quaternion.Slerp(weaponParent.rotation, targetRotation, Time.deltaTime * 8f);
+
+        Vector3 finalRotation = weaponParent.localEulerAngles;
+        finalRotation.y = cacheEulY;
+
+        weaponParent.localEulerAngles = finalRotation;
     }
 }

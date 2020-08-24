@@ -67,7 +67,7 @@ public class Weapon : MonoBehaviourPunCallbacks
                     }
                 }
 
-                if (Input.GetKeyDown(KeyCode.R)) StartCoroutine(Reload(loadout[currentIndex].reloadTime));
+                if (Input.GetKeyDown(KeyCode.R)) photonView.RPC("ReloadRPC", RpcTarget.All);
 
                 //if(loadout[currentIndex].GetClip()==0&& loadout[currentIndex].GetCurrentAmmo()>0) StartCoroutine(Reload(loadout[currentIndex].reloadTime));
 
@@ -83,13 +83,28 @@ public class Weapon : MonoBehaviourPunCallbacks
         }            
     }
 
+    [PunRPC]
+    private void ReloadRPC()
+    {
+        StartCoroutine(Reload(loadout[currentIndex].reloadTime));
+    }
+
     IEnumerator Reload(float pWait)
     {
         isReloading = true;
-        currentWeapon.SetActive(false);
-        yield return new WaitForSeconds(pWait);
-        loadout[currentIndex].Reload();
 
+        if(currentWeapon.GetComponent<Animator>())
+        {
+            currentWeapon.GetComponent<Animator>().Play("Reload", 0, 0);
+        }
+        else
+        {
+            currentWeapon.SetActive(false);
+        }
+        
+        yield return new WaitForSeconds(pWait);
+
+        loadout[currentIndex].Reload();
         currentWeapon.SetActive(true);
         isReloading = false;        
     }
@@ -151,16 +166,18 @@ public class Weapon : MonoBehaviourPunCallbacks
         RaycastHit hit = new RaycastHit();
         if (Physics.Raycast(spawn.position, bloom, out hit, 1000f, canBeShot))
         {
-            GameObject newBulletHole = Instantiate(bullletholePrefab, hit.point + hit.normal * 0.001f, Quaternion.identity) as GameObject;
-            newBulletHole.transform.LookAt(hit.point + hit.normal);
-            Destroy(newBulletHole, 5f);
-            
-            if(photonView.IsMine)
+            if (hit.collider.gameObject.layer != 11)
+            {
+                GameObject newBulletHole = Instantiate(bullletholePrefab, hit.point + hit.normal * 0.001f, Quaternion.identity) as GameObject;
+                newBulletHole.transform.LookAt(hit.point + hit.normal);
+                Destroy(newBulletHole, 5f);
+            }
+            if (photonView.IsMine)
             {
                 //If another player is hit
                 if(hit.collider.gameObject.layer==11)
                 {
-                    hit.collider.gameObject.GetPhotonView().RPC("TakeDamage", RpcTarget.All, loadout[currentIndex].damage);
+                    hit.collider.transform.root.gameObject.GetPhotonView().RPC("TakeDamage", RpcTarget.All, loadout[currentIndex].damage);
                 }
             }
         }

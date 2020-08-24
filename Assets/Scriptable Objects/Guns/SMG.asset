@@ -19,7 +19,7 @@ MonoBehaviour:
   bloom: 20
   recoil: 4
   kickback: 0.05
-  reloadTime: 2.5
+  reloadTime: 2
   damage: 10
   ammo: 120
   clipSize: 30

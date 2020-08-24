@@ -17,7 +17,7 @@ public class Launcher : MonoBehaviourPunCallbacks
     public override void OnConnectedToMaster()
     {
         Debug.Log("Connected!");
-        Join();
+        
         base.OnConnectedToMaster();
     }
 
